@@ -36,7 +36,7 @@ import { clearChatOfflineTurns } from "@/lib/chat-offline-storage";
 import { triggerDeleteFriendReaction } from "@/lib/friend-request-engine";
 import { loadCharacters } from "@/lib/character-storage";
 import { resolveUserIdentity } from "@/lib/settings-storage";
-import { ChevronRight, Image as ImageIcon, Video, Mic, UserMinus, UserPlus, Users, Pin, MessageSquare, Search, AlertCircle, Code, Trash2, Smile, Sparkles, type LucideIcon } from "lucide-react";
+import { ChevronRight, Image as ImageIcon, Video, Mic, UserMinus, UserPlus, Users, Pin, MessageSquare, Search, AlertCircle, Code, Trash2, Smile, Sparkles, type LucideIcon, Plus, X } from "lucide-react";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { ConfirmDialog } from "@/components/ui/modal";
@@ -52,6 +52,30 @@ import {
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
 import { MessageBubble, isStandaloneHtmlPreviewContent } from "./message-bubble";
 import { ScreenEffectSettingsModal } from "./screen-effect-settings-modal";
+
+// ── 手动记忆 ──
+const MANUAL_MEMORY_KEY = "manual_memory";
+
+function getManualMemory(): string[] {
+    const raw = localStorage.getItem(MANUAL_MEMORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+}
+
+function setManualMemory(memories: string[]) {
+    localStorage.setItem(MANUAL_MEMORY_KEY, JSON.stringify(memories));
+}
+
+function addManualMemory(text: string) {
+    const mem = getManualMemory();
+    mem.push(text);
+    setManualMemory(mem);
+}
+
+function removeManualMemory(index: number) {
+    const mem = getManualMemory();
+    mem.splice(index, 1);
+    setManualMemory(mem);
+}
 
 type ChatSettingsPanelProps = {
     session: ChatSession;
@@ -178,11 +202,30 @@ export function ChatSettingsPanel({
     const [offlineBilingualTranslationPrompt, setOfflineBilingualTranslationPrompt] = useState(session.offlineBilingualTranslationPrompt || defaultOfflineBilingualPrompt);
     const [offlineBilingualPromptDraft, setOfflineBilingualPromptDraft] = useState(session.offlineBilingualTranslationPrompt || defaultOfflineBilingualPrompt);
     const [customCSS, setCustomCSS] = useState(() => {
-        // Read latest CSS from storage (in case 小卷 updated it)
         const sessions = loadChatSessions();
         const latest = sessions.find(s => s.id === session.id);
         return (latest as Record<string, unknown>)?.customCSS as string || session.customCSS || "";
     });
+
+    // ── 手动记忆状态 ──
+    const [manualMemories, setManualMemories] = useState<string[]>(() => getManualMemory());
+    const [memoryInput, setMemoryInput] = useState("");
+    const memoryForceUpdate = () => {
+        setManualMemories(getManualMemory());
+    };
+
+    const handleAddMemory = () => {
+        const text = memoryInput.trim();
+        if (!text) return;
+        addManualMemory(text);
+        setMemoryInput("");
+        memoryForceUpdate();
+    };
+
+    const handleRemoveMemory = (index: number) => {
+        removeManualMemory(index);
+        memoryForceUpdate();
+    };
 
     const [showConfirmClear, setShowConfirmClear] = useState(false);
     const [showConfirmClearOffline, setShowConfirmClearOffline] = useState(false);
@@ -292,14 +335,12 @@ export function ChatSettingsPanel({
         ? (groupName || session.groupName || "群聊")
         : (alias || character?.name || `User_${session.contactId.slice(-4)}`);
 
-    // Group members
     const groupChars = session.isGroup
         ? (session.participantIds || []).map(id => characters.find(c => c.id === id)).filter(Boolean)
         : [];
     const userIdentity = resolveUserIdentity(undefined, session.isGroup ? "group_chat" : "chat");
 
-    // ── Group member management ──
-    const [, setRosterVersion] = useState(0); // bump to re-render after admin actions
+    const [, setRosterVersion] = useState(0);
     const [memberActionKey, setMemberActionKey] = useState<string | null>(null);
     const [mutePickerKey, setMutePickerKey] = useState<string | null>(null);
     const [showInvitePicker, setShowInvitePicker] = useState(false);
@@ -341,8 +382,6 @@ export function ChatSettingsPanel({
     };
     const pushAdminNotice = (action: GroupAdminAction, actorName: string, targetKey: string, muteMinutes?: number) => {
         const targetName = getGroupMemberDisplayName(targetKey, userName);
-        // role 用 user（操作人是用户本人）：与 AI 侧 assistant 动作消息对称，
-        // UI 仍按系统通知渲染，进历史时还原为 [A将B移出了群聊] 协议格式
         pushChatMessage({
             sessionId: session.id,
             role: "user",
@@ -365,7 +404,6 @@ export function ChatSettingsPanel({
         setShowInvitePicker(false);
         setRosterVersion(v => v + 1);
     };
-    // 上帝按钮：不走权限矩阵，防止用户把自己锁死
     const reclaimOwnership = () => {
         const updates: Partial<ChatSession> = { groupOwnerId: GROUP_SELF_KEY };
         const sessions = loadChatSessions();
@@ -462,7 +500,6 @@ export function ChatSettingsPanel({
         }
     };
 
-    // Group video: per-participant background upload
     const [groupVideoBgs, setGroupVideoBgs] = useState<Record<string, string>>(session.groupVideoBackgrounds || {});
     const handleGroupVideoBgUpload = async (e: React.ChangeEvent<HTMLInputElement>, participantKey: string) => {
         const file = e.target.files?.[0];
@@ -608,6 +645,46 @@ export function ChatSettingsPanel({
                         <div className="menu-label-group"><span className="menu-label">查找聊天记录</span></div>
                         <div className="menu-right"><ChevronRight size={16} /></div>
                     </button>
+                </div>
+
+                {/* ── 手动记忆 ── */}
+                <div className="menu-group">
+                    <div className="menu-item" style={{ cursor: "default" }}>
+                        <ChatInfoIcon icon={Sparkles} color={BINDING_ACCENTS.memory} />
+                        <div className="menu-label-group">
+                            <span className="menu-label">手动记忆</span>
+                            <span className="menu-desc">添加角色的长期设定，AI回复时会自动带上</span>
+                        </div>
+                    </div>
+                    <div className="menu-item" style={{ paddingLeft: 72, flexWrap: "wrap", gap: 8 }}>
+                        <input
+                            type="text"
+                            value={memoryInput}
+                            onChange={e => setMemoryInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") handleAddMemory(); }}
+                            placeholder="例如：角色喜欢吃辣..."
+                            className="ui-input flex-1 min-w-[120px]"
+                        />
+                        <button onClick={handleAddMemory} className="ui-btn ui-btn-primary flex-shrink-0">
+                            <Plus size={16} strokeWidth={2} /> 添加
+                        </button>
+                    </div>
+                    {manualMemories.length > 0 && (
+                        <div style={{ paddingLeft: 72, paddingRight: 16, paddingBottom: 8 }}>
+                            {manualMemories.map((mem, index) => (
+                                <div key={index} className="flex items-center gap-2 py-1.5 border-b border-[var(--c-border)]/30 last:border-0">
+                                    <span className="ts-13 text-[var(--c-text)] flex-1">• {mem}</span>
+                                    <button
+                                        onClick={() => handleRemoveMemory(index)}
+                                        className="ui-bare-btn text-[var(--c-icon)] hover:text-[var(--c-danger)] p-1"
+                                        aria-label="删除记忆"
+                                    >
+                                        <X size={14} strokeWidth={2} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Group member management */}
@@ -1158,7 +1235,6 @@ export function ChatSettingsPanel({
                     cancelLabel="取消"
                     onConfirm={() => {
                         removeChatContact(session.contactId);
-                        // Fire-and-forget: AI reacts to being deleted
                         triggerDeleteFriendReaction(session.contactId).catch(() => {});
                         setShowConfirmDelete(false);
                         onDeleteFriend?.();
