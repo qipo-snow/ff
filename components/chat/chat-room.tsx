@@ -3087,27 +3087,41 @@ const needsInitialScrollRef = useRef(true);
             if (session.isGroup) {
                 let roundReasoning: string | undefined;
                 const results = await generateGroupChatCompletion(
-                    session,
-                    history,
-                    { onReasoning: (t) => { roundReasoning = t; } },
-                    {
-                        signal: generationRun.controller.signal,
-                        appTags: theaterMode ? ["group_chat"] : undefined,
-                    },
-                );
+  session,
+  history,
+  { onReasoning: (t) => { roundReasoning = t; } },
+  {
+    signal: generationRun.controller.signal,
+    appTags: theaterMode ? ["group_chat"] : undefined,
+    systemPrompt: (originalSystem) => {
+      const raw = localStorage.getItem('manual_memory');
+      const memories = raw ? JSON.parse(raw) : [];
+      const memoryText = memories.map((m) => `- ${m}`).join('\n');
+      return memoryText ? `${originalSystem}\n\n【角色设定/记忆】\n${memoryText}` : originalSystem;
+    }
+  }
+);
                 if (!isCurrentGeneration()) return;
                 await processGroupParts(results, setMessages, generationGuard, roundReasoning);
             } else {
                 let capturedReasoning: string | undefined;
                 const cr = await generateChatCompletion(
-                    session,
-                    history,
-                    {
-                        appTags: theaterMode ? ["chat"] : ["chat", "text"],
-                        signal: generationRun.controller.signal,
-                    },
-                    { onReasoning: (t) => { capturedReasoning = t; } },
-                );
+  session,
+  history,
+  {
+    appTags: theaterMode ? ["chat"] : ["chat", "text"],
+    signal: generationRun.controller.signal,
+    systemPrompt: (originalSystem) => {
+      const raw = localStorage.getItem('manual_memory');
+      const memories = raw ? JSON.parse(raw) : [];
+      const memoryText = memories.map((m) => `- ${m}`).join('\n');
+      return memoryText ? `${originalSystem}\n\n【角色设定/记忆】\n${memoryText}` : originalSystem;
+    }
+  },
+  {
+    onReasoning: (t) => { capturedReasoning = t; },
+  }
+);
                 if (!isCurrentGeneration()) return;
                 const result = await splitAndSaveAIMessages(flattenCompletionResult(cr), { ...generationGuard, reasoningText: capturedReasoning });
                 if (!isCurrentGeneration()) return;
