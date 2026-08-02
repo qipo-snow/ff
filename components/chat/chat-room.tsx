@@ -617,7 +617,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onSendText: (text: string) => boolean;
     onStopGeneration: () => void;
     onTriggerAIResponse: () => void;
-	onSendSticker: (name: string, url?: string) => void;
+    onSendSticker: (name: string, url?: string) => void;
 }>(function ChatTextInputBar({
     characterName,
     characterId,
@@ -1624,6 +1624,9 @@ export function ChatRoom({ session, onBack }: ChatRoomProps) {
         [messages],
     );
 
+    // ──────────────────────────────────────────────────────────────
+    // 关键修改点：关闭单聊自动回复，保留群聊自动回复
+    // ──────────────────────────────────────────────────────────────
     useEffect(() => {
         setUserIdentity(resolveUserIdentity(session.contactId, "chat"));
         setTransientMessages([]);
@@ -1694,18 +1697,27 @@ export function ChatRoom({ session, onBack }: ChatRoomProps) {
                 saveChatSessions(sessions);
             }
 
-            void runManagedGeneration({ history: msgs, onDecline: triggerReply });
+            // 【单聊】不自动回复，用户点击顶部名字触发
+            // 【群聊】保持自动回复
+            if (session.isGroup) {
+                void runManagedGeneration({ history: msgs, onDecline: triggerReply });
+            }
+            // 单聊：不调用 runManagedGeneration
         }
 
         // Friend request accepted: trigger AI reply (localStorage flag set by handleAcceptFriendRequest)
         const pendingKey = PENDING_REPLY_PREFIX + session.id;
         if (kvGet(pendingKey)) {
             kvRemove(pendingKey);
-            void runManagedGeneration({ history: msgs, onDecline: triggerReply });
+            // 【单聊】不自动回复
+            // 【群聊】保持自动回复
+            if (session.isGroup) {
+                void runManagedGeneration({ history: msgs, onDecline: triggerReply });
+            }
+            // 单聊：不调用 runManagedGeneration
         }
     }, [session.id]);
-
-    const needsInitialScrollRef = useRef(true);
+const needsInitialScrollRef = useRef(true);
     const prevMsgCountRef = useRef(0);
     const loadingMoreRef = useRef(false);
     const loadMoreScrollRestoreRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
@@ -5118,7 +5130,22 @@ export function ChatRoom({ session, onBack }: ChatRoomProps) {
                     <button className="page-back-btn" type="button" onClick={onBack} aria-label="返回">
                         <ChevronLeft size={24} strokeWidth={1.5} />
                     </button>
-                    <span className="page-title" style={{ position: 'relative' }}>
+                    {/* ────────────────────────────────────────────────────────────── */}
+                    {/* 修改点2：顶部标题点击触发回复（单聊） */}
+                    {/* ────────────────────────────────────────────────────────────── */}
+                    <span 
+                        className="page-title" 
+                        style={{ 
+                            position: 'relative',
+                            cursor: session.isGroup ? 'default' : 'pointer'
+                        }}
+                        onClick={() => {
+                            if (!session.isGroup && !isGenerating && !isOfflineGenerating) {
+                                triggerAIResponse();
+                            }
+                        }}
+                        title={session.isGroup ? "" : "点击让AI回复"}
+                    >
                         {offlineMode ? "线下 · " : ""}
                         {session.isGroup
                             ? `${session.groupName || "群聊"}(${(session.participantIds?.length || 0) + (session.isSpectator ? 0 : 1)})`
