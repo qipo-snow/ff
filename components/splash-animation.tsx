@@ -7,7 +7,7 @@ export function SplashAnimation() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [opacity, setOpacity] = useState(1);
   const [show, setShow] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadProgress, setLoadProgress] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -31,7 +31,6 @@ export function SplashAnimation() {
       ctx.scale(devicePixelRatio, devicePixelRatio);
     };
 
-    // ── 水波纹点阵 ──
     const cols = 70;
     const rows = 50;
     const points: { x: number; y: number; baseX: number; baseY: number; phase: number }[] = [];
@@ -123,14 +122,12 @@ export function SplashAnimation() {
       ctx.save();
       ctx.globalAlpha = textOpacity;
 
-      // ── 顶部小字 ──
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.font = `300 11px "Helvetica Neue", Arial, sans-serif`;
       ctx.fillStyle = "rgba(150, 150, 160, 0.6)";
       ctx.fillText("✦  S E R E I N  ✦", W / 2, 48);
 
-      // ── 主标题 ──
       const lines = ["Welcome to", "Serein"];
       const fontSize = Math.min(W * 0.085, 72);
       const lineHeight = fontSize * 1.3;
@@ -186,7 +183,6 @@ export function SplashAnimation() {
         }
       }
 
-      // ── 底部装饰线 ──
       const lineY = H / 2 + lineHeight * 0.8;
       ctx.shadowBlur = 0;
       ctx.globalAlpha = textOpacity * 0.25;
@@ -204,11 +200,10 @@ export function SplashAnimation() {
 
       ctx.restore();
 
-      // ── 底部 loading 进度条（DOM 更新） ──
       if (loadStart === 0) loadStart = t;
       const elapsed = t - loadStart;
-      const progress = Math.min(elapsed / 1800, 1);
-      setLoadingProgress(progress);
+      const prog = Math.min(elapsed / 1800, 1);
+      setLoadProgress(prog);
     };
 
     const animate = (timestamp: number) => {
@@ -269,14 +264,13 @@ export function SplashAnimation() {
           display: "block",
         }}
       />
-      {/* ── Loading 进度条（DOM 层） ── */}
       <div
         style={{
           position: "absolute",
           bottom: 60,
           left: "50%",
           transform: "translateX(-50%)",
-          width: Math.min(200, window.innerWidth * 0.4),
+          width: Math.min(200, typeof window !== "undefined" ? window.innerWidth * 0.4 : 200),
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -294,7 +288,7 @@ export function SplashAnimation() {
         >
           <div
             style={{
-              width: `${loadingProgress * 100}%`,
+              width: `${loadProgress * 100}%`,
               height: "100%",
               background: "linear-gradient(90deg, rgba(150, 150, 160, 0.3), rgba(80, 80, 90, 0.6))",
               borderRadius: 2,
@@ -310,7 +304,7 @@ export function SplashAnimation() {
             fontFamily: '"Helvetica Neue", Arial, sans-serif',
           }}
         >
-          LOADING{loadingProgress < 0.33 ? "." : loadingProgress < 0.66 ? ".." : "..."}
+          LOADING{loadProgress < 0.33 ? "." : loadProgress < 0.66 ? ".." : "..."}
         </span>
       </div>
     </div>
