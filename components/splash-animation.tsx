@@ -7,6 +7,7 @@ export function SplashAnimation() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [opacity, setOpacity] = useState(1);
   const [show, setShow] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -18,6 +19,7 @@ export function SplashAnimation() {
     let H = window.innerHeight;
     let animId: number;
     let time = 0;
+    let loadStart = 0;
 
     const resize = () => {
       W = window.innerWidth;
@@ -53,21 +55,15 @@ export function SplashAnimation() {
       }
     };
 
-    // ── ins风白色毛玻璃背景 ──
     const drawGlass = () => {
-      // 主背景：纯净白
       const grad = ctx.createLinearGradient(0, 0, 0, H);
       grad.addColorStop(0, "rgba(255, 255, 255, 0.92)");
       grad.addColorStop(0.5, "rgba(250, 250, 252, 0.95)");
       grad.addColorStop(1, "rgba(245, 245, 248, 0.92)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
-
-      // 毛玻璃效果
       ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
       ctx.fillRect(0, 0, W, H);
-
-      // 柔和光晕
       const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.5);
       glow.addColorStop(0, "rgba(255, 255, 255, 0.30)");
       glow.addColorStop(0.5, "rgba(250, 250, 255, 0.15)");
@@ -76,22 +72,18 @@ export function SplashAnimation() {
       ctx.fillRect(0, 0, W, H);
     };
 
-    // ── 水波纹 ──
     const drawRipples = (t: number) => {
       ctx.clearRect(0, 0, W, H);
       drawGlass();
 
-      // 点阵波纹（极淡灰）
       for (let i = 0; i < points.length; i++) {
         const p = points[i];
         const wave1 = Math.sin(p.baseX * 0.02 + t * 0.008 + p.phase) * 6;
         const wave2 = Math.sin(p.baseY * 0.025 + t * 0.006 + p.phase * 1.3) * 4;
         const wave3 = Math.sin((p.baseX + p.baseY) * 0.015 + t * 0.01) * 3;
         const offset = wave1 + wave2 + wave3;
-
         const x = p.baseX + offset * 0.4;
         const y = p.baseY + Math.sin(p.baseX * 0.03 + t * 0.007 + p.phase) * 5;
-
         const alpha = 0.06 + 0.04 * Math.sin(p.baseX * 0.04 + p.baseY * 0.04 + t * 0.005);
         ctx.beginPath();
         ctx.arc(x, y, 1.0 + 0.5 * Math.sin(p.baseX * 0.05 + t * 0.01), 0, Math.PI * 2);
@@ -99,7 +91,6 @@ export function SplashAnimation() {
         ctx.fill();
       }
 
-      // 主波纹（大圈）- 极淡灰
       for (let ring = 0; ring < 3; ring++) {
         const radius = 80 + ring * 70 + Math.sin(t * 0.015 + ring * 2) * 20;
         const cx = W / 2 + Math.sin(t * 0.01 + ring * 1.5) * 60;
@@ -111,7 +102,6 @@ export function SplashAnimation() {
         ctx.stroke();
       }
 
-      // 飘动光点（极淡灰）
       for (let i = 0; i < 14; i++) {
         const angle = t * 0.005 + i * 0.5;
         const dist = 120 + Math.sin(t * 0.01 + i) * 40;
@@ -126,7 +116,6 @@ export function SplashAnimation() {
       }
     };
 
-    // ── 艺术字 ──
     const drawText = (t: number) => {
       const progress = Math.min(t / 800, 1);
       const textOpacity = progress * 0.95;
@@ -134,21 +123,25 @@ export function SplashAnimation() {
       ctx.save();
       ctx.globalAlpha = textOpacity;
 
+      // ── 顶部小字 ──
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.font = `300 11px "Helvetica Neue", Arial, sans-serif`;
+      ctx.fillStyle = "rgba(150, 150, 160, 0.6)";
+      ctx.fillText("✦  S E R E I N  ✦", W / 2, 48);
+
+      // ── 主标题 ──
       const lines = ["Welcome to", "Serein"];
       const fontSize = Math.min(W * 0.085, 72);
       const lineHeight = fontSize * 1.3;
-
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-
-      // 极淡阴影
       ctx.shadowColor = "rgba(0, 0, 0, 0.04)";
       ctx.shadowBlur = 30;
 
       for (let i = 0; i < lines.length; i++) {
         const y = H / 2 - lineHeight * 0.3 + i * lineHeight;
         const letterSpacing = fontSize * 0.12;
-
         const chars = lines[i].split("");
         let totalWidth = 0;
         const charWidths: number[] = [];
@@ -165,29 +158,21 @@ export function SplashAnimation() {
         for (let j = 0; j < chars.length; j++) {
           const ch = chars[j];
           const w = charWidths[j];
-
           const angle = (Math.sin(t * 0.008 + j * 0.3 + i * 0.5) * 0.015) + (j - chars.length / 2) * 0.008;
           const yOff = Math.sin(t * 0.01 + j * 0.4 + i) * 2;
-
           ctx.save();
           ctx.translate(cx + w / 2, y + yOff);
           ctx.rotate(angle);
-
-          // 深灰渐变文字（ins风）
           const grad = ctx.createLinearGradient(-w / 2, -fontSize / 2, w / 2, fontSize / 2);
           grad.addColorStop(0, "rgba(80, 80, 90, 0.85)");
           grad.addColorStop(0.3, "rgba(40, 40, 50, 0.92)");
           grad.addColorStop(0.6, "rgba(60, 60, 70, 0.88)");
           grad.addColorStop(1, "rgba(90, 90, 100, 0.80)");
           ctx.fillStyle = grad;
-
           ctx.font = `italic 300 ${fontSize}px "Georgia", "Times New Roman", serif`;
           ctx.shadowColor = "rgba(0, 0, 0, 0.04)";
           ctx.shadowBlur = 20;
-
           ctx.fillText(ch, 0, 0);
-
-          // 装饰点（极淡灰）
           if (ch === "W" || ch === "S" || ch === "e" || ch === "i") {
             ctx.shadowBlur = 0;
             const dotSize = 1.5 + Math.sin(t * 0.01 + j) * 1;
@@ -196,13 +181,12 @@ export function SplashAnimation() {
             ctx.arc(w / 2 + 2, fontSize * 0.2, dotSize, 0, Math.PI * 2);
             ctx.fill();
           }
-
           ctx.restore();
           cx += w + letterSpacing;
         }
       }
 
-      // 底部装饰线（极淡灰）
+      // ── 底部装饰线 ──
       const lineY = H / 2 + lineHeight * 0.8;
       ctx.shadowBlur = 0;
       ctx.globalAlpha = textOpacity * 0.25;
@@ -219,6 +203,12 @@ export function SplashAnimation() {
       ctx.stroke();
 
       ctx.restore();
+
+      // ── 底部 loading 进度条（DOM 更新） ──
+      if (loadStart === 0) loadStart = t;
+      const elapsed = t - loadStart;
+      const progress = Math.min(elapsed / 1800, 1);
+      setLoadingProgress(progress);
     };
 
     const animate = (timestamp: number) => {
@@ -279,6 +269,50 @@ export function SplashAnimation() {
           display: "block",
         }}
       />
+      {/* ── Loading 进度条（DOM 层） ── */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 60,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: Math.min(200, window.innerWidth * 0.4),
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            height: 1.5,
+            background: "rgba(200, 200, 210, 0.25)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${loadingProgress * 100}%`,
+              height: "100%",
+              background: "linear-gradient(90deg, rgba(150, 150, 160, 0.3), rgba(80, 80, 90, 0.6))",
+              borderRadius: 2,
+              transition: "width 0.1s linear",
+            }}
+          />
+        </div>
+        <span
+          style={{
+            fontSize: 10,
+            color: "rgba(150, 150, 160, 0.5)",
+            letterSpacing: 2,
+            fontFamily: '"Helvetica Neue", Arial, sans-serif',
+          }}
+        >
+          LOADING{loadingProgress < 0.33 ? "." : loadingProgress < 0.66 ? ".." : "..."}
+        </span>
+      </div>
     </div>
   );
 }
