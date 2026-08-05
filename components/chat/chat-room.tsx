@@ -2841,6 +2841,19 @@ const needsInitialScrollRef = useRef(true);
             const body = getNoticeBody(msg);
             if (body) {
                 sendBrowserNotification(charN, { body: body.slice(0, 60), icon: character?.avatar || undefined });
+                
+                // ========== 添加 Bark 推送 ==========
+                try {
+                    const barkKey = process.env.NEXT_PUBLIC_BARK_KEY || '3uh5K3VHTiX5d74xASSAT5';
+                    if (barkKey && body) {
+                        const title = encodeURIComponent('AI 回复');
+                        const content = encodeURIComponent(body.slice(0, 50));
+                        fetch(`https://api.day.app/${barkKey}/${title}/${content}`).catch(() => {});
+                    }
+                } catch {
+                    // 静默失败，不影响主流程
+                }
+                // ========== Bark 推送结束 ==========
             }
             const afterPublishResult = entry.afterPublish?.(msg);
             if (afterPublishResult) imageReplacementTasks.push(Promise.resolve(afterPublishResult));
