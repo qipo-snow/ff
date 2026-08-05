@@ -484,8 +484,8 @@ type ChatTextInputHandle = {
 };
 type OfflineTextInputHandle = {
     clear: () => void;
-    setText: (string) => void;
-    restoreIfEmpty: (string) => void;
+    setText: (text: string) => void;
+    restoreIfEmpty: (text: string) => void;
 };
 
 function isTransientMessage(msg: Pick<ChatMessage, "id"> | string): boolean {
@@ -2847,9 +2847,8 @@ const needsInitialScrollRef = useRef(true);
                     const barkKey = process.env.NEXT_PUBLIC_BARK_KEY || '3uh5K3VHTiX5d74xASSAT5';
                     if (barkKey && body) {
                         const title = encodeURIComponent('Serein');
-                        const icon = encodeURIComponent('https://i.111666.best/image/xV2lSC3stUu9TmPubkcRiR.jpeg');
                         const content = encodeURIComponent(body.slice(0, 50));
-                        fetch(`https://api.day.app/${barkKey}/${title}/${content}?icon=${icon}`).catch(() => {});
+                        fetch(`https://api.day.app/${barkKey}/${title}/${content}`).catch(() => {});
                     }
                 } catch {
                     // 静默失败，不影响主流程
