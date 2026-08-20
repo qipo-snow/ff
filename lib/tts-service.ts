@@ -383,6 +383,13 @@ function playAudioBlobElement(blob: Blob): { promise: Promise<void>; abort: () =
  * Returns an abort function to stop playback early. Playback is sequential.
  */
 export function playAudioBlob(blob: Blob): { promise: Promise<void>; abort: () => void } {
+    // [PWA 修复] 检测是否运行在 PWA 独立模式（添加到主屏幕）
+    // 如果是，强制使用 HTML Audio Element 播放，绕过 PWA 对 AudioContext 的自动播放限制
+    const isPWA = typeof window !== "undefined" && window.matchMedia('(display-mode: standalone)').matches;
+    if (isPWA) {
+        return playAudioBlobElement(blob);
+    }
+
     const ctx = getAudioContext();
     if (!ctx) return playAudioBlobElement(blob);
 
