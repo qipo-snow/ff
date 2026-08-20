@@ -129,7 +129,7 @@ export type ApiConfig = {
 export type VoiceApiConfig = {
     id: string;
     name?: string;
-    provider: string;
+    provider: "Minimax" | "OpenAI" | "FishAudio";  // ✅ 已添加 FishAudio
     apiKey: string;
     baseUrl?: string;
     region?: string;
