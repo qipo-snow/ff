@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/modal";
 import { Toggle, Input } from "@/components/ui/form";
 import { Alert } from "@/components/ui/feedback";
 
-const SUPPORTED_VOICE_PROVIDERS = new Set(["Minimax", "OpenAI"]);
+const SUPPORTED_VOICE_PROVIDERS = new Set(["Minimax", "OpenAI", "FishAudio"]);
 const MINIMAX_BASE_URL_OPTIONS = [
     { id: "cn", label: "国内版", baseUrl: "https://api.minimaxi.com/v1" },
     { id: "global", label: "海外版", baseUrl: "https://api.minimax.io/v1" },
@@ -21,6 +21,7 @@ const VOICE_PROVIDER_OPTIONS = [
     { value: "OpenAI", label: "OpenAI TTS" },
     { value: "MinimaxCN", label: "Minimax 语音国内版" },
     { value: "MinimaxGlobal", label: "Minimax 语音海外版" },
+    { value: "FishAudio", label: "鱼声 (Fish Audio)" },
 ];
 
 const DEFAULT_VOICE_CONFIGS: VoiceApiConfig[] = [
@@ -205,6 +206,7 @@ function makeCloneVoiceId(config: VoiceApiConfig): string {
 
 function providerSelectValue(config: VoiceApiConfig): string {
     if (config.provider === "OpenAI") return "OpenAI";
+    if (config.provider === "FishAudio") return "FishAudio";
     return config.baseUrl === GLOBAL_MINIMAX_BASE_URL ? "MinimaxGlobal" : "MinimaxCN";
 }
 
@@ -295,6 +297,17 @@ export function VoiceSettings() {
             });
             setManualModelIds(prev => ({ ...prev, [id]: true }));
             setManualVoiceIds(prev => ({ ...prev, [id]: false }));
+            return;
+        }
+        if (providerOption === "FishAudio") {
+            updateConfig(id, {
+                provider: "FishAudio",
+                baseUrl: "https://api.fishaudio.us/v1",
+                model: "s2.1-pro-free",
+                defaultVoice: "default",
+            });
+            setManualModelIds(prev => ({ ...prev, [id]: true }));
+            setManualVoiceIds(prev => ({ ...prev, [id]: true }));
             return;
         }
         const wasMinimax = current?.provider === "Minimax";
@@ -770,89 +783,154 @@ export function VoiceSettings() {
                                             </>
                                         )}
 
-                                        <div className="flex flex-col gap-1">
-                                            <label className="menu-desc ml-1">默认音色 (Default Voice) 或 自定义 Voice ID</label>
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex gap-2">
-                                                    {manualVoiceIds[config.id] ? (
-                                                        <>
+                                        {config.provider === "FishAudio" && (
+                                            <>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="menu-desc ml-1">接口地址 (Base URL)</label>
+                                                    <Input
+                                                        type="text"
+                                                        value={config.baseUrl || "https://api.fishaudio.us/v1"}
+                                                        onChange={(e) => updateConfig(config.id, { baseUrl: e.target.value })}
+                                                        placeholder="https://api.fishaudio.us/v1"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="menu-desc ml-1">语音模型 (TTS Model)</label>
+                                                    {manualModelIds[config.id] ? (
+                                                        <div className="flex gap-2">
                                                             <Input
                                                                 type="text"
-                                                                value={config.defaultVoice}
-                                                                onChange={(e) => updateConfig(config.id, { defaultVoice: e.target.value })}
-                                                                placeholder={config.provider === "OpenAI" ? "alloy" : "male-qn-qingse 或克隆 Voice ID"}
+                                                                value={config.model || "s2.1-pro-free"}
+                                                                onChange={(e) => updateConfig(config.id, { model: e.target.value })}
+                                                                placeholder="手动输入模型 ID"
                                                                 className="flex-1"
                                                             />
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setManualVoiceIds(prev => ({ ...prev, [config.id]: false }))}
+                                                                onClick={() => setManualModelIds(prev => ({ ...prev, [config.id]: false }))}
                                                                 className="ui-icon-btn"
-                                                                aria-label="返回音色下拉选择"
-                                                                title="返回音色下拉选择"
+                                                                aria-label="返回模型下拉选择"
+                                                                title="返回模型下拉选择"
                                                             >
                                                                 <List size={20} />
                                                             </button>
-                                                        </>
+                                                        </div>
                                                     ) : (
-                                                        (() => {
-                                                            const options = voiceOptionsForConfig(config, fetchedVoices);
-                                                            return (
-                                                                <select
-                                                                    value={options.some(v => v.id === config.defaultVoice) ? config.defaultVoice : "__manual__"}
-                                                                    onChange={(e) => {
-                                                                        if (e.target.value === "__manual__") {
-                                                                            setManualVoiceIds(prev => ({ ...prev, [config.id]: true }));
-                                                                            return;
-                                                                        }
-                                                                        updateConfig(config.id, { defaultVoice: e.target.value });
-                                                                    }}
-                                                                    className="ui-select flex-1"
-                                                                >
-                                                                    {options.map(v => (
-                                                                        <option key={v.id} value={v.id}>{v.name}</option>
-                                                                    ))}
-                                                                    <option value="__manual__">手动输入...</option>
-                                                                </select>
-                                                            );
-                                                        })()
-                                                    )}
-                                                    <button
-                                                        onClick={() => togglePreview(config)}
-                                                        className="ui-icon-btn"
-                                                        data-active={playingVoiceId === config.id}
-                                                    >
-                                                        {playingVoiceId === config.id ? <Pause size={20} /> : <Play size={20} />}
-                                                    </button>
-                                                </div>
-
-                                                <div className="flex gap-2 mt-0.5">
-                                                    <button
-                                                        onClick={() => fetchVoices(config)}
-                                                        disabled={isFetching[config.id]}
-                                                        className="ui-btn ui-btn ui-btn-soft-action w-full"
-                                                    >
-                                                        <RefreshCw size={16} className={isFetching[config.id] ? "animate-spin" : ""} />
-                                                        {isFetching[config.id] ? "同步中..." : config.provider === "Minimax" ? "同步音色列表" : "显示默认音色"}
-                                                    </button>
-                                                    {config.provider === "Minimax" && (
-                                                        <button
-                                                            onClick={() => openCloneModal(config)}
-                                                            disabled={!config.apiKey.trim()}
-                                                            className="ui-btn ui-btn-soft-action w-full"
+                                                        <select
+                                                            value={config.model === "s2.1-pro-free" || config.model === "s2.1-pro" ? config.model : "__manual__"}
+                                                            onChange={(e) => {
+                                                                if (e.target.value === "__manual__") {
+                                                                    setManualModelIds(prev => ({ ...prev, [config.id]: true }));
+                                                                    return;
+                                                                }
+                                                                updateConfig(config.id, { model: e.target.value });
+                                                            }}
+                                                            className="ui-select"
                                                         >
-                                                            <Upload size={16} />
-                                                            上传音频克隆音色
-                                                        </button>
+                                                            <option value="s2.1-pro-free">s2.1-pro-free (免费)</option>
+                                                            <option value="s2.1-pro">s2.1-pro (付费)</option>
+                                                            <option value="__manual__">手动输入...</option>
+                                                        </select>
                                                     )}
                                                 </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="menu-desc ml-1">默认音色 (Default Voice)</label>
+                                                    <Input
+                                                        type="text"
+                                                        value={config.defaultVoice || "default"}
+                                                        onChange={(e) => updateConfig(config.id, { defaultVoice: e.target.value })}
+                                                        placeholder="default 或音色克隆 ID"
+                                                    />
+                                                    <span className="menu-desc ml-1 text-[10px]">鱼声支持音色克隆，填克隆后的 ID 即可使用</span>
+                                                </div>
+                                            </>
+                                        )}
 
-                                                {fetchError[config.id] && (
-                                                    <Alert variant="danger">
-                                                        <AlertCircle size={14} />
-                                                        {fetchError[config.id]}
-                                                    </Alert>
-                                                )}
-                                            </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label className="menu-desc ml-1">默认音色 (Default Voice) 或 自定义 Voice ID</label>
+                                            {config.provider !== "FishAudio" && (
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="flex gap-2">
+                                                        {manualVoiceIds[config.id] ? (
+                                                            <>
+                                                                <Input
+                                                                    type="text"
+                                                                    value={config.defaultVoice}
+                                                                    onChange={(e) => updateConfig(config.id, { defaultVoice: e.target.value })}
+                                                                    placeholder={config.provider === "OpenAI" ? "alloy" : "male-qn-qingse 或克隆 Voice ID"}
+                                                                    className="flex-1"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setManualVoiceIds(prev => ({ ...prev, [config.id]: false }))}
+                                                                    className="ui-icon-btn"
+                                                                    aria-label="返回音色下拉选择"
+                                                                    title="返回音色下拉选择"
+                                                                >
+                                                                    <List size={20} />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            (() => {
+                                                                const options = voiceOptionsForConfig(config, fetchedVoices);
+                                                                return (
+                                                                    <select
+                                                                        value={options.some(v => v.id === config.defaultVoice) ? config.defaultVoice : "__manual__"}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.value === "__manual__") {
+                                                                                setManualVoiceIds(prev => ({ ...prev, [config.id]: true }));
+                                                                                return;
+                                                                            }
+                                                                            updateConfig(config.id, { defaultVoice: e.target.value });
+                                                                        }}
+                                                                        className="ui-select flex-1"
+                                                                    >
+                                                                        {options.map(v => (
+                                                                            <option key={v.id} value={v.id}>{v.name}</option>
+                                                                        ))}
+                                                                        <option value="__manual__">手动输入...</option>
+                                                                    </select>
+                                                                );
+                                                            })()
+                                                        )}
+                                                        <button
+                                                            onClick={() => togglePreview(config)}
+                                                            className="ui-icon-btn"
+                                                            data-active={playingVoiceId === config.id}
+                                                        >
+                                                            {playingVoiceId === config.id ? <Pause size={20} /> : <Play size={20} />}
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="flex gap-2 mt-0.5">
+                                                        <button
+                                                            onClick={() => fetchVoices(config)}
+                                                            disabled={isFetching[config.id]}
+                                                            className="ui-btn ui-btn ui-btn-soft-action w-full"
+                                                        >
+                                                            <RefreshCw size={16} className={isFetching[config.id] ? "animate-spin" : ""} />
+                                                            {isFetching[config.id] ? "同步中..." : config.provider === "Minimax" ? "同步音色列表" : "显示默认音色"}
+                                                        </button>
+                                                        {config.provider === "Minimax" && (
+                                                            <button
+                                                                onClick={() => openCloneModal(config)}
+                                                                disabled={!config.apiKey.trim()}
+                                                                className="ui-btn ui-btn-soft-action w-full"
+                                                            >
+                                                                <Upload size={16} />
+                                                                上传音频克隆音色
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {fetchError[config.id] && (
+                                                        <Alert variant="danger">
+                                                            <AlertCircle size={14} />
+                                                            {fetchError[config.id]}
+                                                        </Alert>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="ui-toggle-row">
