@@ -25,6 +25,7 @@ export function resolveVoiceConfig(characterId: string, appId?: ContentAppId): V
  * Supported providers:
  * - Minimax: REST API → hex-encoded mp3
  * - OpenAI: REST API → binary audio blob
+ * - FishAudio: REST API → binary audio blob (mp3)
  */
 export async function synthesizeSpeech(
     text: string,
@@ -41,6 +42,11 @@ export async function synthesizeSpeech(
 
     if (provider === "OpenAI") {
         return synthesizeOpenAI(text, voiceConfig);
+    }
+
+    // 🐟 新增：鱼声分支
+    if (provider === "FishAudio") {
+        return synthesizeFishAudio(text, voiceConfig);
     }
 
     return null;
@@ -153,6 +159,36 @@ async function synthesizeOpenAI(text: string, config: VoiceApiConfig): Promise<B
     if (!response.ok) {
         const errText = await response.text().catch(() => "");
         throw new Error(`OpenAI TTS 请求失败 (${response.status}): ${errText}`);
+    }
+
+    const blob = await response.blob();
+    return new Blob([await blob.arrayBuffer()], { type: "audio/mpeg" });
+}
+
+// ── 🐟 FishAudio TTS ─────────────────────────────────────
+
+async function synthesizeFishAudio(text: string, config: VoiceApiConfig): Promise<Blob | null> {
+    if (!config.apiKey) throw new Error("FishAudio API Key 未配置");
+
+    const baseUrl = (config.baseUrl || "https://api.fishaudio.us/v1").replace(/\/$/, "");
+    
+    const response = await fetchWithTimeout(`${baseUrl}/tts`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${config.apiKey}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            model: config.model || "s2.1-pro-free",  // 默认用免费开发者模型
+            text: text,
+            voice: config.defaultVoice || "default",
+            format: "mp3",
+        }),
+    });
+
+    if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        throw new Error(`FishAudio TTS 请求失败 (${response.status}): ${errText}`);
     }
 
     const blob = await response.blob();
