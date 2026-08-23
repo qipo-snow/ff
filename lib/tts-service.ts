@@ -179,9 +179,9 @@ async function synthesizeFishAudio(text: string, config: VoiceApiConfig): Promis
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            model: config.model || "s2.1-pro-free",  // 默认用免费开发者模型
+            model: config.model || "s2.1-pro-free",
             text: text,
-            voice: config.defaultVoice || "default",
+            voice_id: config.defaultVoice || "default",
             format: "mp3",
         }),
     });
