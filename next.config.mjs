@@ -36,6 +36,10 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/**": ["./data/**"],
   },
+  // ✅ 新增：默认开启单机模式，不需要在 Vercel 后台填任何变量
+  env: {
+    NEXT_PUBLIC_SELF_HOSTED_MODE: 'true',
+  },
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       // @gltf-transform/core 的 dist 引用 node:fs / node:path(带 node: 前缀),
