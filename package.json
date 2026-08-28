@@ -55,5 +55,18 @@
     "eslint-config-next": "^15.1.0",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.7.2"
+  },
+  "browserslist": {
+    "production": [
+      "ios >= 9",
+      "safari >= 9",
+      "chrome >= 49",
+      "firefox >= 52"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
