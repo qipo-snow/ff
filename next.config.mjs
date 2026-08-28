@@ -36,9 +36,14 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/**": ["./data/**"],
   },
-  // ✅ 新增：默认开启单机模式，不需要在 Vercel 后台填任何变量
+  // ✅ 默认开启单机模式
   env: {
     NEXT_PUBLIC_SELF_HOSTED_MODE: 'true',
+  },
+  // ✅ ✅ ✅ 新增：强制兼容 iPhone 7 等旧设备（以下3行是新加的）
+  target: 'es2015',
+  experimental: {
+    forceSwcTransforms: true,
   },
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
