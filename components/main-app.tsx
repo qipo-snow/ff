@@ -18,132 +18,10 @@ const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
 };
 
-const BUILTIN_FONT_URLS = [
-  "/fonts/huiwen.woff2",
-  "/fonts/huiwen.woff2",
-  "/fonts/special-elite.woff2",
-  "/fonts/splash/instrument-serif-regular-400.woff2",
-  "/fonts/splash/instrument-serif-italic-400.woff2",
-  "/fonts/splash/inter-300.woff2",
-  "/fonts/splash/inter-400.woff2",
-  "/fonts/splash/inter-500.woff2",
-  "/fonts/splash/major-mono-display-400.woff2",
-  "/fonts/splash/jetbrains-mono-300.woff2",
-  "/fonts/splash/jetbrains-mono-400.woff2",
-  "/fonts/interview/noto-serif-sc.woff2",
-  "/fonts/interview/bodoni-moda.woff2",
-  "/fonts/interview/bodoni-moda-italic.woff2",
-  "/fonts/interview/eb-garamond.woff2",
-  "/fonts/interview/eb-garamond-italic.woff2",
-  "/fonts/interview/long-cang.woff2",
-  "/fonts/interview/cinzel.woff2",
-  "/fonts/interview/press-start-2p.woff2",
-  "/fonts/notewall/ximai.woff2",
-  "/fonts/notewall/xiaozhitiao.woff2",
-  "/fonts/notewall/huiwen-upload.woff2",
-  "/fonts/notewall/chen-yuluoyan-thin.woff2",
-  "/fonts/game-hall/fredoka-400.woff2",
-  "/fonts/game-hall/fredoka-500.woff2",
-  "/fonts/game-hall/fredoka-600.woff2",
-  "/fonts/game-hall/fredoka-700.woff2",
-  "/fonts/game-hall/caveat-500.woff2",
-  "/fonts/game-hall/caveat-700.woff2",
-  "/fonts/game-hall/zen-maru-gothic-500.woff2",
-  "/fonts/game-hall/zen-maru-gothic-700.woff2",
-  "/fonts/game-hall/zen-maru-gothic-900.woff2",
-  "/fonts/\u5B57\u4F53/MISANS-REGULAR.woff2",
-  "/fonts/\u5B57\u4F53/MISANS-MEDIUM.woff2",
-  "/fonts/\u5B57\u4F53/MISANS-SEMIBOLD.woff2",
-] as const;
-
-const BUILTIN_FONT_LOAD_SPECS = [
-  '400 1em "Instrument Serif"',
-  'italic 400 1em "Instrument Serif"',
-  '300 1em "Inter"',
-  '400 1em "Inter"',
-  '500 1em "Inter"',
-  '400 1em "Major Mono Display"',
-  '300 1em "JetBrains Mono"',
-  '400 1em "JetBrains Mono"',
-  '400 1em "Huiwen"',
-  '400 1em "Noto Serif SC"',
-  '400 1em "Source Han Serif SC"',
-  '400 1em "Bodoni Moda"',
-  'italic 400 1em "Bodoni Moda"',
-  '400 1em "EB Garamond"',
-  'italic 400 1em "EB Garamond"',
-  '400 1em "Long Cang"',
-  '400 1em "Cinzel"',
-  '400 1em "Press Start 2P"',
-  '400 1em "Special Elite"',
-  '400 1em "NoteWall Ximai"',
-  '400 1em "NoteWall Xiaozhitiao"',
-  '400 1em "NoteWall Huiwen"',
-  '400 1em "Game Hall Fredoka"',
-  '500 1em "Game Hall Fredoka"',
-  '600 1em "Game Hall Fredoka"',
-  '700 1em "Game Hall Fredoka"',
-  '500 1em "Game Hall Caveat"',
-  '700 1em "Game Hall Caveat"',
-  '500 1em "Game Hall Zen Maru Gothic"',
-  '700 1em "Game Hall Zen Maru Gothic"',
-  '900 1em "Game Hall Zen Maru Gothic"',
-  '400 1em "MiSans"',
-  '500 1em "MiSans"',
-  '600 1em "MiSans"',
-] as const;
-
-const FONT_CACHE_BATCH_SIZE = 3;
-const FONT_CACHE_BATCH_DELAY_MS = 80;
-
-type IdleDeadlineLike = {
-  didTimeout: boolean;
-  timeRemaining: () => number;
-};
-
-type WindowWithIdleCallback = Window & {
-  requestIdleCallback?: (callback: (deadline: IdleDeadlineLike) => void, options?: { timeout?: number }) => number;
-  cancelIdleCallback?: (handle: number) => void;
-};
-
-function scheduleIdleTask(callback: () => void): () => void {
-  if (typeof window === "undefined") {
-    return () => { };
-  }
-
-  const idleWindow = window as WindowWithIdleCallback;
-  if (typeof idleWindow.requestIdleCallback === "function") {
-    const handle = idleWindow.requestIdleCallback(() => callback(), { timeout: 2400 });
-    return () => idleWindow.cancelIdleCallback?.(handle);
-  }
-
-  const handle = window.setTimeout(callback, 600);
-  return () => window.clearTimeout(handle);
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-async function cacheFontUrl(url: string): Promise<void> {
-  const response = await fetch(url, { cache: "force-cache" });
-  if (!response.ok) return;
-  await response.arrayBuffer();
-}
-
-async function warmBuiltinFonts(shouldStop: () => boolean): Promise<void> {
-  if (typeof window === "undefined") return;
-
-  for (let index = 0; index < BUILTIN_FONT_URLS.length; index += FONT_CACHE_BATCH_SIZE) {
-    if (shouldStop()) return;
-    const batch = BUILTIN_FONT_URLS.slice(index, index + FONT_CACHE_BATCH_SIZE);
-    await Promise.all(batch.map((url) => cacheFontUrl(url).catch(() => undefined)));
-    if (shouldStop()) return;
-    await wait(FONT_CACHE_BATCH_DELAY_MS);
-  }
-
-  if (shouldStop() || !document.fonts) return;
-  await Promise.all(BUILTIN_FONT_LOAD_SPECS.map((spec) => document.fonts.load(spec).catch(() => [])));
+// ===== iOS 15 兼容性检测 =====
+function isIOS15OrOlder() {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone OS 1[0-5]_/.test(navigator.userAgent);
 }
 
 function SplashScreen({ ready = false, onEnter }: { ready?: boolean; onEnter?: () => void }) {
@@ -174,6 +52,131 @@ function SplashScreen({ ready = false, onEnter }: { ready?: boolean; onEnter?: (
   );
 }
 
+// ===== 精简版主应用（给 iOS 15 用） =====
+function LiteMainApp() {
+  const [hydrated, setHydrated] = useState(false);
+  const [splashDismissed, setSplashDismissed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await hydrateKvDb();
+      if (cancelled) return;
+      setHydrated(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <AccountGate>
+      {!splashDismissed ? (
+        <SplashScreen ready={hydrated} onEnter={() => setSplashDismissed(true)} />
+      ) : (
+        <main className="app-root">
+          <div style={{ padding: 20, textAlign: "center", fontSize: 16 }}>
+            <h2>📱 精简模式</h2>
+            <p style={{ color: "#666" }}>您的设备正在运行兼容版本</p>
+            <div style={{ marginTop: 20, padding: 20, background: "#f5f5f5", borderRadius: 12 }}>
+              <p>部分高级功能已关闭以保证稳定运行</p>
+              <button 
+                onClick={() => window.location.reload()}
+                style={{ marginTop: 16, padding: "8px 24px", borderRadius: 8, border: "none", background: "#007AFF", color: "#fff", fontSize: 16 }}
+              >
+                刷新页面
+              </button>
+            </div>
+          </div>
+        </main>
+      )}
+    </AccountGate>
+  );
+}
+
+// ===== 完整版主应用（给现代设备用） =====
+function FullMainApp() {
+  const [preparedDesktopTheme, setPreparedDesktopTheme] = useState<PreparedDesktopTheme | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [splashDismissed, setSplashDismissed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      await hydrateKvDb();
+      if (cancelled) return;
+
+      let nextPreparedTheme: PreparedDesktopTheme | null = null;
+      try {
+        nextPreparedTheme = await prepareDesktopThemeForFirstPaint();
+      } catch (error) {
+        console.warn("[MainApp] desktop theme preload failed:", error);
+      }
+
+      if (cancelled) return;
+      setPreparedDesktopTheme(nextPreparedTheme);
+      setHydrated(true);
+      if (hasPendingMcpOAuthCallback()) {
+        setSplashDismissed(true);
+      }
+    })();
+
+    // 安卓全屏兜底：点击屏幕进入全屏模式（iOS 不支持此 API，会自动忽略）
+    const isMobile = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)").matches;
+    const isEdge = /Edg/i.test(navigator.userAgent);
+    if (!isMobile || isEdge) return () => {
+      cancelled = true;
+    };
+
+    function tryFullscreen() {
+      const doc = document.documentElement;
+      if (document.fullscreenElement) return;
+      doc.requestFullscreen?.().catch(() => { });
+    }
+    document.addEventListener("click", tryFullscreen);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("click", tryFullscreen);
+    };
+  }, []);
+
+  return (
+    <AccountGate>
+      {!splashDismissed ? (
+        <SplashScreen ready={hydrated} onEnter={() => setSplashDismissed(true)} />
+      ) : (
+        <main className="app-root">
+          <MusicProvider>
+            <DesktopShell
+              initialThemeProfile={preparedDesktopTheme?.profile}
+              initialThemeAssets={preparedDesktopTheme?.assets}
+            />
+            <CloudBackupScheduler />
+            <MediaMaintenanceScheduler />
+          </MusicProvider>
+        </main>
+      )}
+    </AccountGate>
+  );
+}
+
+// ===== 导出：根据设备自动选择版本 =====
+export function MainApp() {
+  const [isOldDevice, setIsOldDevice] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsOldDevice(isIOS15OrOlder());
+  }, []);
+
+  // 还没检测完设备时，显示空白
+  if (isOldDevice === null) {
+    return <div style={{ minHeight: "100vh" }} />;
+  }
+
+  // iOS 15 及以下用精简版，其他用完整版
+  return isOldDevice ? <LiteMainApp /> : <FullMainApp />;
+}
+
+// ===== 保留原有的类型和函数（供 FullMainApp 使用） =====
 type PreparedDesktopTheme = {
   profile: ThemeProfile;
   assets: Record<string, string>;
@@ -221,72 +224,4 @@ async function prepareDesktopThemeForFirstPaint(): Promise<PreparedDesktopTheme>
   const assets = assetIds.length ? await getThemeAssetMap(assetIds) : {};
   await Promise.all(Object.values(assets).map(preloadImageDataUrl));
   return { profile, assets };
-}
-
-export function MainApp() {
-  const [preparedDesktopTheme, setPreparedDesktopTheme] = useState<PreparedDesktopTheme | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-  const [splashDismissed, setSplashDismissed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      await hydrateKvDb();
-      if (cancelled) return;
-
-      let nextPreparedTheme: PreparedDesktopTheme | null = null;
-      try {
-        nextPreparedTheme = await prepareDesktopThemeForFirstPaint();
-      } catch (error) {
-        console.warn("[MainApp] desktop theme preload failed:", error);
-      }
-
-      if (cancelled) return;
-      setPreparedDesktopTheme(nextPreparedTheme);
-      setHydrated(true);
-      if (hasPendingMcpOAuthCallback()) {
-        setSplashDismissed(true);
-      }
-    })();
-
-    // 安卓全屏兜底：点击屏幕进入全屏模式（iOS 不支持此 API，会自动忽略）
-    const isMobile = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)").matches;
-    // Edge 改用 minimal-ui 保留原生状态栏，不能再被强制全屏顶掉（仅 Edge 跳过，其它浏览器照旧）
-    const isEdge = /Edg/i.test(navigator.userAgent);
-    if (!isMobile || isEdge) return () => {
-      cancelled = true;
-    };
-
-    function tryFullscreen() {
-      const doc = document.documentElement;
-      if (document.fullscreenElement) return;
-      doc.requestFullscreen?.().catch(() => { });
-    }
-    // 每次点击都尝试进入全屏（退出后可重新进入）
-    document.addEventListener("click", tryFullscreen);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("click", tryFullscreen);
-    };
-  }, []);
-
-  return (
-    <AccountGate>
-      {!splashDismissed ? (
-        <SplashScreen ready={hydrated} onEnter={() => setSplashDismissed(true)} />
-      ) : (
-        <main className="app-root">
-          <MusicProvider>
-            <DesktopShell
-              initialThemeProfile={preparedDesktopTheme?.profile}
-              initialThemeAssets={preparedDesktopTheme?.assets}
-            />
-            <CloudBackupScheduler />
-            <MediaMaintenanceScheduler />
-          </MusicProvider>
-        </main>
-      )}
-    </AccountGate>
-  );
 }
