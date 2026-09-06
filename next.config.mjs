@@ -37,14 +37,13 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
   },
-  // ========== 新增：兼容性配置 ==========
+  // ========== 兼容性配置（不需要额外安装任何包） ==========
   compiler: {
-    // 移除 console.log 以减少 iOS 15 的日志压力（可选）
     removeConsole: process.env.NODE_ENV === 'production' ? {
       exclude: ['error', 'warn'],
     } : false,
   },
-  // 强制转译某些可能不兼容的 node_modules 包
+  // 强制转译可能不兼容的包，让它们变成 iOS 15 能懂的语法
   transpilePackages: [
     '@react-three/fiber',
     '@react-three/drei',
@@ -68,20 +67,7 @@ const nextConfig = {
         path: false,
         module: false,
       };
-      
-      // ========== 新增：为客户端注入 Polyfill ==========
-      const originalEntry = config.entry;
-      config.entry = async () => {
-        const entries = await originalEntry();
-        if (entries['main-app'] && !entries['main-app'].includes('core-js/stable')) {
-          entries['main-app'].unshift('core-js/stable');
-        }
-        if (entries['main-app'] && !entries['main-app'].includes('regenerator-runtime/runtime')) {
-          entries['main-app'].unshift('regenerator-runtime/runtime');
-        }
-        return entries;
-      };
-      // ========== Polyfill 注入结束 ==========
+      // ========== 已移除 Polyfill 注入（避免构建失败） ==========
     }
     return config;
   },
