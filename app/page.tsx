@@ -36,16 +36,21 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function HomePage() {
-  // 检测是否为 iOS 15 及以下
-  const [isOldDevice, setIsOldDevice] = useState(false);
+  const [isOldDevice, setIsOldDevice] = useState<boolean | null>(null);
+  const [enterApp, setEnterApp] = useState(false);
 
   useEffect(() => {
     const isOld = /iPhone OS 1[0-5]_/.test(navigator.userAgent);
     setIsOldDevice(isOld);
   }, []);
 
-  // 如果是 iOS 15，显示精简提示（避免加载 MainApp 里的复杂组件）
-  if (isOldDevice) {
+  // 还没检测完设备时，显示空白
+  if (isOldDevice === null) {
+    return <div style={{ minHeight: "100vh" }} />;
+  }
+
+  // iOS 15 且用户还没点击"进入应用"
+  if (isOldDevice && !enterApp) {
     return (
       <div style={{ 
         minHeight: "100vh", 
@@ -55,23 +60,34 @@ export default function HomePage() {
         justifyContent: "center",
         padding: 20,
         textAlign: "center",
-        fontSize: 16
+        fontSize: 16,
+        background: "#f8f7f2"
       }}>
-        <h2>📱 精简模式</h2>
-        <p style={{ color: "#666" }}>您的设备正在运行兼容版本</p>
-        <div style={{ marginTop: 20, padding: 20, background: "#f5f5f5", borderRadius: 12, maxWidth: 300 }}>
-          <p>部分高级功能已关闭以保证稳定运行</p>
+        <h2 style={{ fontSize: 24, marginBottom: 8 }}>📱 精简模式</h2>
+        <p style={{ color: "#666", marginBottom: 20 }}>您的设备正在运行兼容版本</p>
+        <div style={{ padding: 20, background: "#fff", borderRadius: 12, maxWidth: 300, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+          <p style={{ marginBottom: 16, color: "#333" }}>部分高级功能已关闭以保证稳定运行</p>
           <button 
-            onClick={() => window.location.reload()}
-            style={{ marginTop: 16, padding: "8px 24px", borderRadius: 8, border: "none", background: "#007AFF", color: "#fff", fontSize: 16, cursor: "pointer" }}
+            onClick={() => setEnterApp(true)}
+            style={{ 
+              padding: "10px 32px", 
+              borderRadius: 8, 
+              border: "none", 
+              background: "#007AFF", 
+              color: "#fff", 
+              fontSize: 16, 
+              cursor: "pointer",
+              fontWeight: 500
+            }}
           >
-            刷新页面
+            进入应用 →
           </button>
         </div>
       </div>
     );
   }
 
+  // 现代设备 或 iOS 15 用户已点击进入
   return (
     <ErrorBoundary>
       <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>加载中...</div>}>
