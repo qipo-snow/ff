@@ -1,22 +1,21 @@
 "use client";
 
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 
-// 动态导入 MainApp，并禁用 SSR（服务端渲染），避免 Node.js 环境报错
+// 动态导入 MainApp，禁用 SSR
 const MainApp = lazy(() => 
   import("@/components/main-app").then((mod) => {
-    // 如果导入失败，返回一个空组件，防止页面崩溃
     return { default: mod.MainApp || (() => <div>加载失败，请刷新</div>) };
   }).catch(() => {
     return { default: () => <div>组件加载失败，请刷新页面</div> };
   })
 );
 
-// 简易错误边界组件
+// 简易错误边界
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
-  const [hasError, setHasError] = React.useState(false);
+  const [hasError, setHasError] = useState(false);
   
-  React.useEffect(() => {
+  useEffect(() => {
     const handler = () => setHasError(true);
     window.addEventListener("error", handler);
     return () => window.removeEventListener("error", handler);
@@ -37,19 +36,37 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function HomePage() {
-  // 检测是否为 iOS 15 及以下，如果是则显示简化版
-  const isOldDevice = typeof navigator !== "undefined" && 
-                     /iPhone OS 1[0-5]_/.test(navigator.userAgent);
+  // 检测是否为 iOS 15 及以下
+  const [isOldDevice, setIsOldDevice] = useState(false);
 
+  useEffect(() => {
+    const isOld = /iPhone OS 1[0-5]_/.test(navigator.userAgent);
+    setIsOldDevice(isOld);
+  }, []);
+
+  // 如果是 iOS 15，显示精简提示（避免加载 MainApp 里的复杂组件）
   if (isOldDevice) {
     return (
-      <div style={{ padding: 20, textAlign: "center", fontSize: 16 }}>
-        <h2>📱 您的设备正在加载精简版</h2>
-        <p style={{ color: "#666" }}>为了兼容性，部分特效已关闭</p>
-        <div style={{ marginTop: 20 }}>
-          <Suspense fallback={<div>加载中...</div>}>
-            <MainApp />
-          </Suspense>
+      <div style={{ 
+        minHeight: "100vh", 
+        display: "flex", 
+        flexDirection: "column",
+        alignItems: "center", 
+        justifyContent: "center",
+        padding: 20,
+        textAlign: "center",
+        fontSize: 16
+      }}>
+        <h2>📱 精简模式</h2>
+        <p style={{ color: "#666" }}>您的设备正在运行兼容版本</p>
+        <div style={{ marginTop: 20, padding: 20, background: "#f5f5f5", borderRadius: 12, maxWidth: 300 }}>
+          <p>部分高级功能已关闭以保证稳定运行</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 16, padding: "8px 24px", borderRadius: 8, border: "none", background: "#007AFF", color: "#fff", fontSize: 16, cursor: "pointer" }}
+          >
+            刷新页面
+          </button>
         </div>
       </div>
     );
