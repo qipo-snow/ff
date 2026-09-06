@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 
 import { ChatPluginBootstrap } from "@/components/chat-plugin-bootstrap";
 import { CSSImportEnhancer } from "@/components/css-import-enhancer";
@@ -20,6 +21,19 @@ export const metadata: Metadata = {
   description: "float",
 };
 
+// ===== 新增：错误边界组件（捕获客户端崩溃） =====
+function SafeSuspense({ children }: { children: ReactNode }) {
+  if (typeof window === 'undefined') {
+    return <>{children}</>;
+  }
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+      {children}
+    </Suspense>
+  );
+}
+// ===== 错误边界结束 =====
+
 export default function RootLayout({
   children
 }: Readonly<{
@@ -38,10 +52,12 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
-        <PWARegistrar />
-        <CSSImportEnhancer />
-        <ChatPluginBootstrap />
-        {children}
+        <SafeSuspense>
+          <PWARegistrar />
+          <CSSImportEnhancer />
+          <ChatPluginBootstrap />
+          {children}
+        </SafeSuspense>
       </body>
     </html>
   );
